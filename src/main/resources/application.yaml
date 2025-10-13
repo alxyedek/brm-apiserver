@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: brm-apiserver
+  threads:
+    virtual:
+      enabled: true
+

@@ -1,0 +1,9 @@
+---
+description: Defines the project, purpose, and always-on main rules
+alwaysApply: true
+---
+- This project will be a spring boot api-server project that interacts with binary storages, metadata storage/query engines and serves api's for a Binary Repository (Artifact) Management system. We'll add modules to it, step-by-step.
+- We intend to use virtual threads all along, so we have to be cautious whenever we risk blocking system threads.
+- We're using rest, for our server and when interacting with other (internal and external) services, for now. We intent to use grpc, whenever applicable, in the future.
+- We intend to make the build as cloud-native as possible. We also intend to build executabe images, alongside jars, in the future.
+- Mostly for the above reasons, we need to use bleeding-edge technologies and version. We're using GraalVM 25 and spring-boot 4 (even if it is not final, yet).
