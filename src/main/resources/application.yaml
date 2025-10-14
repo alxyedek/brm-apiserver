@@ -5,3 +5,9 @@ spring:
     virtual:
       enabled: true
 
+brm:
+  blocking:
+    operation-type: mixed  # Options: sleep, file-io, network-io, mixed
+    min-block-period-ms: 1000
+    max-block-period-ms: 5000
+

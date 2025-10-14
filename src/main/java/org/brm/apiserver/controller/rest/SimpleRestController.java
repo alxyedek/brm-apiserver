@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.brm.apiserver.model.SimpleResponse;
 import org.brm.apiserver.misc.Utils;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.brm.apiserver.misc.BlockingSimulator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +20,7 @@ public class SimpleRestController {
     private static final Logger log = LoggerFactory.getLogger(SimpleRestController.class);
 
     public static final String PATH_SIMPLE = "/simple";
+    public static final String PATH_BLOCKING = "/blocking";
     public static final String PATH_PROXY = "/proxy";
     public static final String PATH = "/rest";
     public static final String SCHEME_HTTP = "http://";
@@ -27,7 +28,10 @@ public class SimpleRestController {
     @Value("${nom.aob.sbbench.logstring:#{null}}")
     private String logString;
 
-    public SimpleRestController() {
+    private final BlockingSimulator blockingSimulator;
+
+    public SimpleRestController(BlockingSimulator blockingSimulator) {
+        this.blockingSimulator = blockingSimulator;
         // this.restTemplate = restTemplate;
     }
 
@@ -48,6 +52,25 @@ public class SimpleRestController {
 //                .randomInteger(Utils.newRandomInt())
 //                .threadID(Thread.currentThread().getId())
 //                .build();
+
+        return new ResponseEntity<>(simpleResponse, HttpStatus.OK);
+    }
+
+    @GetMapping(PATH_BLOCKING)
+    public ResponseEntity<SimpleResponse> blockingResponse(
+            @RequestHeader(value = "x-b3-traceid", required = false) String traceId,
+            @RequestParam(value = "operation-type", required = false) String operationType,
+            @RequestParam(value = "min-block-period-ms", required = false) Integer minBlockPeriodMs,
+            @RequestParam(value = "max-block-period-ms", required = false) Integer maxBlockPeriodMs) {
+
+        if (logString != null) {
+            log.info("in blockingResponse. logString = {}.", logString);
+        }
+
+        // Perform the blocking operation with optional parameters
+        blockingSimulator.performBlockingOperation(operationType, minBlockPeriodMs, maxBlockPeriodMs);
+
+        SimpleResponse simpleResponse = Utils.newSimpleResponse(PATH_BLOCKING);
 
         return new ResponseEntity<>(simpleResponse, HttpStatus.OK);
     }
