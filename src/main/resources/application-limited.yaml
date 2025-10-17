@@ -1,0 +1,45 @@
+# Limited Resource Configuration Profile
+# This profile is designed for testing virtual threads under resource constraints
+
+spring:
+  application:
+    name: brm-apiserver-limited
+
+# Server configuration for minimal resource usage
+server:
+  port: 8080
+  tomcat:
+    # Minimal thread pool configuration
+    threads:
+      max: 2          # Maximum platform threads (can be reduced to 1)
+      min-spare: 1    # Minimum spare threads
+    # Connection limits
+    max-connections: 50
+    accept-count: 10
+    # Timeout settings
+    connection-timeout: 20000ms
+    keep-alive-timeout: 60000ms
+    # Additional Tomcat optimizations for limited resources
+    max-http-post-size: 1MB
+    max-swallow-size: 1MB
+
+# Logging configuration for monitoring resource usage
+logging:
+  level:
+    org.springframework.web: INFO
+    org.apache.tomcat: INFO
+    org.brm.apiserver: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p --- [%15.15t] %-40.40logger{39} : %m%n"
+
+# Virtual threads configuration (inherited from main config)
+# threads:
+#   virtual:
+#     enabled: true
+
+# Blocking operation configuration for testing
+brm:
+  blocking:
+    operation-type: MIXED  # Options: SLEEP, FILE_IO, NETWORK_IO, MIXED
+    min-block-period-ms: 1000
+    max-block-period-ms: 5000

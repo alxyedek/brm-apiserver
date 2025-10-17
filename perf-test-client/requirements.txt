@@ -1,0 +1,7 @@
+# No external dependencies required!
+# This load testing tool uses only Python standard library modules:
+# - urllib.request (HTTP requests)
+# - concurrent.futures (ThreadPoolExecutor for concurrency)
+# - threading (thread safety)
+# - statistics (statistical calculations)
+# - time, signal, sys, argparse (core functionality)

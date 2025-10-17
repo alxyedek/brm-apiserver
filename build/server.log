@@ -1,0 +1,46 @@
+=== BRM API Server - Resource Limited Mode ===
+CPU Cores: 2
+Heap Memory: 128MB - 256MB
+Metaspace: 128MB
+Direct Memory: 64MB
+Platform Threads: 2
+==============================================
+Starting server with JVM args: -XX:ActiveProcessorCount=2 -Xms128m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:MaxDirectMemorySize=64m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+UseStringDeduplication -Dspring.profiles.active=limited -Dserver.tomcat.threads.max=2 -Dserver.tomcat.threads.min-spare=1 -Dserver.tomcat.max-connections=50 -Dserver.tomcat.accept-count=10 -Dserver.tomcat.connection-timeout=20000 -Dserver.tomcat.keep-alive-timeout=60000
+Press Ctrl+C to stop the server
+
+20:22:36,741 |-ERROR in ch.qos.logback.core.pattern.parser.Compiler@4331d187 - There is no conversion supplier registered for conversion word [pid]
+20:22:36,743 |-ERROR in ch.qos.logback.core.pattern.parser.Compiler@4331d187 - [pid] is not a valid conversion word
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::             (v4.0.0-M3)
+
+2025-10-16 20:22:36.895  INFO %PARSER_ERROR[pid] --- [           main] o.brm.apiserver.BrmApiserverApplication  : Starting BrmApiserverApplication v0.0.1-SNAPSHOT using Java 25 with PID 118935 (/home/alx/BRM/brm-apiserver/target/brm-apiserver-0.0.1-SNAPSHOT.jar started by alx in /home/alx/BRM/brm-apiserver)
+2025-10-16 20:22:36.900  INFO %PARSER_ERROR[pid] --- [           main] o.brm.apiserver.BrmApiserverApplication  : The following 1 profile is active: "limited"
+2025-10-16 20:22:38.054  INFO %PARSER_ERROR[pid] --- [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2025-10-16 20:22:38.075  INFO %PARSER_ERROR[pid] --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-10-16 20:22:38.075  INFO %PARSER_ERROR[pid] --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.11]
+2025-10-16 20:22:38.109  INFO %PARSER_ERROR[pid] --- [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1134 ms
+2025-10-16 20:22:38.713  WARN %PARSER_ERROR[pid] --- [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'
+2025-10-16 20:22:38.728  INFO %PARSER_ERROR[pid] --- [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2025-10-16 20:22:38.746 ERROR %PARSER_ERROR[pid] --- [           main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8080 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+

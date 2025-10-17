@@ -5,9 +5,13 @@ spring:
     virtual:
       enabled: true
 
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p --- [%15.15t] %-40.40logger{39} : %m%n"
+
 brm:
   blocking:
-    operation-type: mixed  # Options: sleep, file-io, network-io, mixed
+    operation-type: MIXED  # Options: SLEEP, FILE_IO, NETWORK_IO, MIXED
     min-block-period-ms: 1000
     max-block-period-ms: 5000
 
