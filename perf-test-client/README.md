@@ -4,9 +4,10 @@ This folder contains the load testing tools for the BRM API Server.
 
 ## Files
 
-- `load-test.py` - Main load testing script
+- `run-test-client.sh` - Generic performance test client (tests any server)
+- `run-performance-test.sh` - BRM server orchestrator (manages server lifecycle)
+- `load-test.py` - HTTP load testing engine
 - `monitor-performance.sh` - Performance monitoring script using pidstat
-- `run-performance-test.sh` - Automated performance test runner
 - `requirements.txt` - Python dependencies (none required - uses standard library)
 - `README.md` - This documentation
 
@@ -191,9 +192,9 @@ Use the provided monitoring script for more control:
 INTERVAL=5 DURATION=300 ./perf-test-client/monitor-performance.sh
 ```
 
-### Automated Performance Test Runner
+### BRM Server Orchestrator (run-performance-test.sh)
 
-Use the automated script for a complete test with monitoring. The script uses environment variables for configuration and supports .env files:
+Use this script to test the BRM server with full lifecycle management:
 
 ```bash
 # Run with defaults or .env file
@@ -203,17 +204,42 @@ Use the automated script for a complete test with monitoring. The script uses en
 ./perf-test-client/run-performance-test.sh --env-file environments/single-core-perf-test.env
 
 # Run with environment variables directly
-OPERATION_TYPE=FILE_IO ./perf-test-client/run-performance-test.sh
-
-# Run with multiple environment variables
-OPERATION_TYPE=SLEEP CONCURRENT_REQUESTS=200 TOTAL_REQUESTS=1000 ./perf-test-client/run-performance-test.sh
-
-# Test with limited resources
 CPU_CORES=1 HEAP_MB=128 PLATFORM_THREADS=1 ./perf-test-client/run-performance-test.sh
 
 # Quick test (completes in ~2-3 seconds)
 ./perf-test-client/run-performance-test.sh --env-file environments/fast-test.env
 ```
+
+**What it does:**
+- Starts/stops BRM server with resource limits
+- Monitors server performance with pidstat
+- Delegates testing to `run-test-client.sh`
+- Reports all log files
+
+### Generic Test Client (run-test-client.sh)
+
+Use this script to test any server endpoint:
+
+```bash
+# Test localhost:8080 with defaults
+./perf-test-client/run-test-client.sh
+
+# Test remote server
+BASE_URL=http://remote-server:8080 ./perf-test-client/run-test-client.sh
+
+# Test with specific .env file
+./perf-test-client/run-test-client.sh --env-file environments/fast-test.env
+
+# Test with environment variables
+BASE_URL=http://localhost:9090 OPERATION_TYPE=SLEEP ./perf-test-client/run-test-client.sh
+```
+
+**What it does:**
+- Tests any server at any BASE_URL
+- Validates test parameters
+- Runs load tests
+- Reports results
+- Does NOT manage servers
 
 ### Server Management Scripts
 
