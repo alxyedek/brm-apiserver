@@ -60,23 +60,34 @@ When testing the `/rest/blocking` endpoint, you can specify the `operation-type`
 
 ## Configurable Parameters
 
-The performance test script supports extensive configuration via command-line options and environment variables:
+The performance test script uses environment variables for configuration. You can set these via:
 
-### Load Test Parameters
-- **`-c, --concurrent NUM`**: Number of concurrent requests (default: 50)
-- **`-t, --total NUM`**: Total number of requests (default: 1000)
-- **`-T, --timeout SECONDS`**: Request timeout in seconds (default: 30)
+- **Shell environment variables**: `OPERATION_TYPE=SLEEP ./perf-test-client/run-performance-test.sh`
+- **.env files**: Create a `.env` file or use `--env-file` option
+- **Default values**: Used if not specified
 
-### Blocking Operation Parameters
-- **`-o, --operation-type TYPE`**: Operation type (default: MIXED)
-- **`-m, --min-block-ms MS`**: Minimum block period in milliseconds (default: 500)
-- **`-M, --max-block-ms MS`**: Maximum block period in milliseconds (default: 2000)
+### Environment Variables
 
-### Server Resource Parameters
+#### Load Test Parameters
+- **`CONCURRENT_REQUESTS`**: Number of concurrent requests (default: 50)
+- **`TOTAL_REQUESTS`**: Total number of requests (default: 1000)
+- **`TIMEOUT_SECONDS`**: Request timeout in seconds (default: 30)
+
+#### Blocking Operation Parameters
+- **`OPERATION_TYPE`**: Operation type: SLEEP, FILE_IO, NETWORK_IO, MIXED (default: MIXED)
+- **`MIN_BLOCK_PERIOD_MS`**: Minimum block period in milliseconds (default: 500)
+- **`MAX_BLOCK_PERIOD_MS`**: Maximum block period in milliseconds (default: 2000)
+
+#### Server Resource Parameters
 - **`CPU_CORES`**: Number of CPU cores for server (default: 2)
 - **`HEAP_MB`**: Max heap size in MB (default: 256)
 - **`MIN_HEAP_MB`**: Initial heap size in MB (default: 128)
 - **`PLATFORM_THREADS`**: Max platform threads (default: 2)
+
+### Pre-configured Environment Files
+
+- **`environments/single-core-perf-test.env`**: Single-core test with 200 concurrent requests (your last run)
+- **`environments/fast-test.env`**: Quick test that completes in ~2-3 seconds for verification
 
 ## Example Output
 
@@ -126,24 +137,31 @@ This tool is designed to test the performance of virtual threads under various l
 
 3. **Test blocking endpoint** (simulates I/O operations):
    ```bash
-   python3 perf-test-client/load-test.py --url "http://localhost:8080/rest/blocking?operation-type=SLEEP" --concurrent 100 --total 2000
+   OPERATION_TYPE=SLEEP ./perf-test-client/run-performance-test.sh
    ```
 
 4. **Compare different blocking types**:
    ```bash
    # Sleep blocking
-   python3 perf-test-client/load-test.py --url "http://localhost:8080/rest/blocking?operation-type=SLEEP" --concurrent 20 --total 500
+   OPERATION_TYPE=SLEEP ./perf-test-client/run-performance-test.sh
    
    # File I/O blocking
-   python3 perf-test-client/load-test.py --url "http://localhost:8080/rest/blocking?operation-type=FILE_IO" --concurrent 20 --total 500
+   OPERATION_TYPE=FILE_IO ./perf-test-client/run-performance-test.sh
    
    # Network I/O blocking
-   python3 perf-test-client/load-test.py --url "http://localhost:8080/rest/blocking?operation-type=NETWORK_IO" --concurrent 20 --total 500
+   OPERATION_TYPE=NETWORK_IO ./perf-test-client/run-performance-test.sh
    
-   python3 perf-test-client/load-test.py --url "http://localhost:8080/rest/blocking?operation-type=NETWORK_IO&min-block-period-ms=500&max-block-period-ms=2000" --concurrent 60 --total 180
-
    # Mixed operations
-   python3 perf-test-client/load-test.py --url "http://localhost:8080/rest/blocking?operation-type=MIXED" --concurrent 20 --total 500
+   OPERATION_TYPE=MIXED ./perf-test-client/run-performance-test.sh
+   ```
+
+5. **Test with different load parameters**:
+   ```bash
+   # High concurrency
+   CONCURRENT_REQUESTS=200 TOTAL_REQUESTS=1000 ./perf-test-client/run-performance-test.sh
+   
+   # Quick test
+   CONCURRENT_REQUESTS=10 TOTAL_REQUESTS=50 TIMEOUT_SECONDS=5 ./perf-test-client/run-performance-test.sh
    ```
 
 ## Performance Monitoring
@@ -175,32 +193,26 @@ INTERVAL=5 DURATION=300 ./perf-test-client/monitor-performance.sh
 
 ### Automated Performance Test Runner
 
-Use the automated script for a complete test with monitoring. The script will automatically start the server if it's not running and stop it when the test completes:
+Use the automated script for a complete test with monitoring. The script uses environment variables for configuration and supports .env files:
 
 ```bash
-# Run with default parameters (MIXED operations, 500-2000ms blocking)
+# Run with defaults or .env file
 ./perf-test-client/run-performance-test.sh
 
-# Run with custom operation type
-./perf-test-client/run-performance-test.sh -o FILE_IO
+# Run with specific .env file
+./perf-test-client/run-performance-test.sh --env-file environments/single-core-perf-test.env
 
-# Run with custom blocking periods
-./perf-test-client/run-performance-test.sh -o SLEEP -m 100 -M 500
+# Run with environment variables directly
+OPERATION_TYPE=FILE_IO ./perf-test-client/run-performance-test.sh
 
-# Run with custom load test parameters
-./perf-test-client/run-performance-test.sh -c 100 -t 2000 -T 10
+# Run with multiple environment variables
+OPERATION_TYPE=SLEEP CONCURRENT_REQUESTS=200 TOTAL_REQUESTS=1000 ./perf-test-client/run-performance-test.sh
 
-# Run with custom operation and load parameters
-./perf-test-client/run-performance-test.sh -o NETWORK_IO -c 20 -t 500 -T 5
-
-# Using environment variables
-OPERATION_TYPE=NETWORK_IO ./perf-test-client/run-performance-test.sh
-
-# Test with limited resources (1 CPU core, 128MB heap, 1 platform thread)
+# Test with limited resources
 CPU_CORES=1 HEAP_MB=128 PLATFORM_THREADS=1 ./perf-test-client/run-performance-test.sh
 
-# Test with minimal resources (1 CPU core, 64MB heap, 1 platform thread)
-CPU_CORES=1 HEAP_MB=64 MIN_HEAP_MB=32 PLATFORM_THREADS=1 ./perf-test-client/run-performance-test.sh
+# Quick test (completes in ~2-3 seconds)
+./perf-test-client/run-performance-test.sh --env-file environments/fast-test.env
 ```
 
 ### Server Management Scripts

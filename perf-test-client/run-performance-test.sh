@@ -28,34 +28,25 @@ show_usage() {
     echo "Run a single performance test for BRM API Server"
     echo ""
     echo "Options:"
-    echo "  -o, --operation-type TYPE     Operation type: SLEEP, FILE_IO, NETWORK_IO, MIXED (default: MIXED)"
-    echo "  -m, --min-block-ms MS         Minimum block period in milliseconds (default: 500)"
-    echo "  -M, --max-block-ms MS         Maximum block period in milliseconds (default: 2000)"
-    echo "  -c, --concurrent NUM          Number of concurrent requests (default: 50)"
-    echo "  -t, --total NUM               Total number of requests (default: 1000)"
-    echo "  -T, --timeout SECONDS         Request timeout in seconds (default: 30)"
     echo "  -h, --help                   Show this help message"
+    echo "  -e, --env-file FILE          Load environment from file (default: .env)"
     echo ""
-    echo "Environment variables:"
-    echo "  OPERATION_TYPE                Operation type"
-    echo "  MIN_BLOCK_PERIOD_MS           Minimum block period in milliseconds"
-    echo "  MAX_BLOCK_PERIOD_MS           Maximum block period in milliseconds"
-    echo "  CONCURRENT_REQUESTS            Number of concurrent requests"
-    echo "  TOTAL_REQUESTS                Total number of requests"
-    echo "  TIMEOUT_SECONDS               Request timeout in seconds"
-    echo "  CPU_CORES                     Number of CPU cores for server (default: 2)"
-    echo "  HEAP_MB                       Max heap size in MB (default: 256)"
-    echo "  MIN_HEAP_MB                   Initial heap size in MB (default: 128)"
-    echo "  PLATFORM_THREADS              Max platform threads (default: 2)"
+    echo "Environment variables (can be set via shell or .env file):"
+    echo "  OPERATION_TYPE               Operation type: SLEEP, FILE_IO, NETWORK_IO, MIXED (default: MIXED)"
+    echo "  MIN_BLOCK_PERIOD_MS          Minimum block period in milliseconds (default: 500)"
+    echo "  MAX_BLOCK_PERIOD_MS          Maximum block period in milliseconds (default: 2000)"
+    echo "  CONCURRENT_REQUESTS          Number of concurrent requests (default: 50)"
+    echo "  TOTAL_REQUESTS               Total number of requests (default: 1000)"
+    echo "  TIMEOUT_SECONDS              Request timeout in seconds (default: 30)"
+    echo "  CPU_CORES                    Number of CPU cores for server (default: 2)"
+    echo "  HEAP_MB                      Max heap size in MB (default: 256)"
+    echo "  MIN_HEAP_MB                  Initial heap size in MB (default: 128)"
+    echo "  PLATFORM_THREADS             Max platform threads (default: 2)"
     echo ""
     echo "Examples:"
-    echo "  $0                                    # Use all defaults"
-    echo "  $0 -o FILE_IO                        # File I/O test"
-    echo "  $0 -o SLEEP -m 100 -M 500            # Sleep test with 100-500ms blocking"
-    echo "  $0 -c 100 -t 2000                    # High concurrency test (100 concurrent, 2000 total)"
-    echo "  $0 -o NETWORK_IO -c 20 -t 500 -T 10  # Network I/O test with custom load parameters"
-    echo "  OPERATION_TYPE=NETWORK_IO $0         # Using environment variable"
-    echo "  CPU_CORES=1 HEAP_MB=128 $0           # Limited resources test"
+    echo "  $0                                    # Use defaults or .env file"
+    echo "  $0 --env-file single-core-perf-test.env"
+    echo "  OPERATION_TYPE=SLEEP CONCURRENT_REQUESTS=200 $0"
 }
 
 # Function to cleanup processes
@@ -94,36 +85,19 @@ cleanup() {
 # Set up signal handlers for cleanup
 trap cleanup EXIT INT TERM
 
-# Parse command line arguments
+# Default .env file location
+ENV_FILE=".env"
+
+# Parse minimal command line arguments (only --help and --env-file)
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -o|--operation-type)
-            OPERATION_TYPE="$2"
-            shift 2
-            ;;
-        -m|--min-block-ms)
-            MIN_BLOCK_PERIOD_MS="$2"
-            shift 2
-            ;;
-        -M|--max-block-ms)
-            MAX_BLOCK_PERIOD_MS="$2"
-            shift 2
-            ;;
-        -c|--concurrent)
-            CONCURRENT_REQUESTS="$2"
-            shift 2
-            ;;
-        -t|--total)
-            TOTAL_REQUESTS="$2"
-            shift 2
-            ;;
-        -T|--timeout)
-            TIMEOUT_SECONDS="$2"
-            shift 2
-            ;;
         -h|--help)
             show_usage
             exit 0
+            ;;
+        -e|--env-file)
+            ENV_FILE="$2"
+            shift 2
             ;;
         *)
             echo "Unknown option: $1"
@@ -132,6 +106,13 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Load .env file if it exists
+if [ -f "$ENV_FILE" ]; then
+    echo "Loading environment from: $ENV_FILE"
+    # Export variables from .env file (ignoring comments and empty lines)
+    export $(grep -v '^#' "$ENV_FILE" | grep -v '^[[:space:]]*$' | xargs)
+fi
 
 # Validate arguments
 if ! [[ "$MIN_BLOCK_PERIOD_MS" =~ ^[0-9]+$ ]] || [ "$MIN_BLOCK_PERIOD_MS" -lt 0 ]; then
