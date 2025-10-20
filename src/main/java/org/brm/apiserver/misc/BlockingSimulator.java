@@ -9,8 +9,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Map;
 import java.util.Random;
 
 @Component
@@ -18,6 +22,15 @@ public class BlockingSimulator {
 
     private static final Logger log = LoggerFactory.getLogger(BlockingSimulator.class);
     private static final Random RANDOM = new Random();
+
+    // Test data file management
+    private static final String TEST_DATA_DIR = "testdata/blocking";
+    private static final Map<String, Integer> TEST_FILES = Map.of(
+        "file_1kb.dat", 1 * 1024,
+        "file_100kb.dat", 100 * 1024,
+        "file_1mb.dat", 1 * 1024 * 1024,
+        "file_10mb.dat", 10 * 1024 * 1024
+    );
 
     public enum OperationType {
         SLEEP, FILE_IO, NETWORK_IO, MIXED
@@ -31,6 +44,84 @@ public class BlockingSimulator {
 
     @Value("${brm.blocking.max-block-period-ms:5000}")
     private int maxBlockPeriodMs;
+
+    /**
+     * Initialize test data files on first use
+     */
+    private void ensureTestDataFiles() {
+        try {
+            // Create testdata/blocking directory
+            Path testDataPath = Paths.get(TEST_DATA_DIR);
+            if (!Files.exists(testDataPath)) {
+                Files.createDirectories(testDataPath);
+                log.info("Created test data directory: {}", TEST_DATA_DIR);
+            }
+
+            // Create test files if they don't exist
+            for (Map.Entry<String, Integer> entry : TEST_FILES.entrySet()) {
+                String filename = entry.getKey();
+                int size = entry.getValue();
+                File testFile = new File(TEST_DATA_DIR, filename);
+
+                if (!testFile.exists()) {
+                    createTestFile(testFile, size);
+                    log.info("Created test data file: {} ({} bytes)", filename, size);
+                }
+            }
+        } catch (IOException e) {
+            log.warn("Failed to initialize test data files", e);
+        }
+    }
+
+    /**
+     * Create a test file with random data
+     */
+    private void createTestFile(File file, int size) throws IOException {
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            byte[] buffer = new byte[8192];
+            int remaining = size;
+            
+            while (remaining > 0) {
+                int toWrite = Math.min(buffer.length, remaining);
+                RANDOM.nextBytes(buffer);
+                fos.write(buffer, 0, toWrite);
+                remaining -= toWrite;
+            }
+            fos.flush();
+        }
+    }
+
+    /**
+     * Select appropriate test file based on duration
+     */
+    private File selectTestFile(int durationMs) {
+        String filename;
+        if (durationMs < 100) {
+            filename = "file_1kb.dat";
+        } else if (durationMs < 500) {
+            filename = "file_100kb.dat";
+        } else if (durationMs < 2000) {
+            filename = "file_1mb.dat";
+        } else {
+            filename = "file_10mb.dat";
+        }
+        return new File(TEST_DATA_DIR, filename);
+    }
+
+    /**
+     * Read a test file completely with small buffer to force I/O syscalls
+     */
+    private int readTestFile(File file) throws IOException {
+        try (FileInputStream fis = new FileInputStream(file)) {
+            byte[] buffer = new byte[4096]; // Small buffer for syscalls
+            int totalRead = 0;
+            int n;
+            while ((n = fis.read(buffer)) != -1) {
+                totalRead += n;
+            }
+            return totalRead;
+        }
+    }
 
     public void performBlockingOperation() {
         performBlockingOperation(null, null, null);
@@ -97,65 +188,97 @@ public class BlockingSimulator {
     }
 
     private void performFileIoBlocking(int durationMs) {
-        File tempFile = null;
+        // Initialize test data files on first use
+        ensureTestDataFiles();
+        
         try {
-            // Create temporary file
-            tempFile = File.createTempFile("brm_blocking_test", ".tmp");
+            // Select appropriate test file based on duration
+            File testFile = selectTestFile(durationMs);
             
-            // Write some data to simulate I/O
-            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-                byte[] data = new byte[1024];
-                RANDOM.nextBytes(data);
-                fos.write(data);
-                fos.flush();
+            // Calculate read iterations based on file size and duration
+            int readIterations;
+            if (durationMs < 100) {
+                readIterations = durationMs / 2; // ~2ms per read (1KB file)
+            } else if (durationMs < 500) {
+                readIterations = durationMs / 5; // ~5ms per read (100KB file)
+            } else if (durationMs < 2000) {
+                readIterations = durationMs / 10; // ~10ms per read (1MB file)
+            } else {
+                readIterations = durationMs / 20; // ~20ms per read (10MB file)
             }
             
-            // Sleep for a portion of the duration
-            Thread.sleep(durationMs / 2);
+            if (readIterations < 1) {
+                readIterations = 1;
+            }
             
-            // Read the data back to simulate more I/O
-            try (FileInputStream fis = new FileInputStream(tempFile)) {
-                byte[] buffer = new byte[1024];
-                while (fis.read(buffer) != -1) {
-                    // Simulate processing
-                    Thread.sleep(10);
+            // Read the file multiple times to achieve desired duration
+            long startTime = System.currentTimeMillis();
+            int totalBytesRead = 0;
+            
+            for (int i = 0; i < readIterations; i++) {
+                int bytesRead = readTestFile(testFile);
+                totalBytesRead += bytesRead;
+                
+                // Add small delay between reads to simulate I/O processing time
+                // This ensures we achieve the desired blocking duration even with cached files
+                long elapsed = System.currentTimeMillis() - startTime;
+                long remainingTime = durationMs - elapsed;
+                
+                if (remainingTime > 0 && i < readIterations - 1) { // Don't delay after last iteration
+                    // Distribute remaining time across remaining iterations
+                    long delayPerIteration = remainingTime / (readIterations - i - 1);
+                    if (delayPerIteration > 0) {
+                        Thread.sleep(delayPerIteration);
+                    }
                 }
             }
             
-            // Sleep for remaining duration
-            Thread.sleep(durationMs / 2);
+            log.debug("File I/O blocking completed: {}ms, {} iterations, {} bytes read", 
+                    durationMs, readIterations, totalBytesRead);
             
         } catch (IOException | InterruptedException e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
-            log.warn("File I/O blocking encountered an issue", e);
-        } finally {
-            // Clean up temporary file
-            if (tempFile != null && tempFile.exists()) {
-                if (!tempFile.delete()) {
-                    log.warn("Failed to delete temporary file: {}", tempFile.getAbsolutePath());
-                }
-            }
+            log.warn("File I/O blocking encountered an issue, falling back to sleep", e);
+            performSleepBlocking(durationMs);
         }
     }
 
     private void performNetworkIoBlocking(int durationMs) {
-        try (Socket socket = new Socket()) {
-            // Attempt to connect to localhost on a port that's likely not listening
-            // This will cause a connection timeout, simulating network I/O blocking
-            socket.setSoTimeout(durationMs);
-            
-            // Try to connect to a port that's likely not listening (simulates network delay)
-            socket.connect(new java.net.InetSocketAddress("localhost", 12345), durationMs);
-            
-        } catch (SocketTimeoutException e) {
-            // Expected - this simulates network timeout/blocking
-            log.debug("Network I/O blocking completed with timeout (expected)");
-        } catch (IOException e) {
-            // Expected - connection refused or other network issues
-            log.debug("Network I/O blocking completed with connection error (expected)");
+        // Use non-routable TEST-NET IPs (RFC 5737) to create realistic network blocking
+        // Split duration into thirds for multiple connection attempts
+        
+        int timeoutPerAttempt = durationMs / 3;
+        if (timeoutPerAttempt < 1) {
+            timeoutPerAttempt = 1;
         }
+        
+        // Attempt 1: TCP connect to 192.0.2.1:80 (TEST-NET-1)
+        try (Socket socket1 = new Socket()) {
+            socket1.connect(new InetSocketAddress("192.0.2.1", 80), timeoutPerAttempt);
+            log.debug("Network I/O attempt 1 completed unexpectedly");
+        } catch (IOException e) {
+            log.debug("Network I/O attempt 1 completed: {} (expected)", e.getMessage());
+        }
+        
+        // Attempt 2: TCP connect to 198.51.100.1:80 (TEST-NET-2)
+        try (Socket socket2 = new Socket()) {
+            socket2.connect(new InetSocketAddress("198.51.100.1", 80), timeoutPerAttempt);
+            log.debug("Network I/O attempt 2 completed unexpectedly");
+        } catch (IOException e) {
+            log.debug("Network I/O attempt 2 completed: {} (expected)", e.getMessage());
+        }
+        
+        // Attempt 3: TCP connect to 203.0.113.1:53 (TEST-NET-3)
+        try (Socket socket3 = new Socket()) {
+            socket3.connect(new InetSocketAddress("203.0.113.1", 53), timeoutPerAttempt);
+            log.debug("Network I/O attempt 3 completed unexpectedly");
+        } catch (IOException e) {
+            log.debug("Network I/O attempt 3 completed: {} (expected)", e.getMessage());
+        }
+        
+        log.debug("Network I/O blocking completed: {}ms total duration", durationMs);
     }
 
     private void performMixedBlocking(int durationMs, int minMs, int maxMs) {
